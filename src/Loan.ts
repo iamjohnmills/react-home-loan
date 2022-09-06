@@ -6,7 +6,7 @@ class Loan {
 
   constructor(){
     this.inputs = {
-      income_yearly_in: 70000,
+      income_yearly_in: 120000,
       income_monthly_pretax_out: 420,
       income_tax_rate: 27,
       income_monthly_expenses: 1200,
