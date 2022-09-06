@@ -1,4 +1,9 @@
+import {IAppLoanInputs,IAppLoanCalculations,IAppLoan,IAppIteration} from './Interfaces'
+
 class Loan {
+  private inputs: IAppLoanInputs;
+  private calculations: IAppLoanCalculations;
+
   constructor(){
     this.inputs = {
       income_yearly_in: 70000,
@@ -33,27 +38,27 @@ class Loan {
       due_monthly_total: 0,
     }
   }
-  async set(key,value){
+  async set(key:string, value:number): Promise<IAppLoan> {
     this.inputs[key] = value;
     await this.calculate();
     return this.get();
   }
-  get(){
+  get(): IAppLoan {
     return {
       inputs: this.inputs,
       calculations: this.calculations,
     }
   }
-  crunchTheNumbers(key,step,increment){
+  crunchTheNumbers(key:string, step:number, increment:number): Promise<IAppLoan>{
     return new Promise(async (resolve,reject) => {
-      let run = true;
+      let run:boolean = true;
       while(run){
-        const iteration = await this.iterate(key,step,increment);
+        const iteration:IAppIteration = await this.iterate(key,step,increment);
         run = iteration.run;
         if(iteration.finish){
           this.inputs[key] = iteration.previous;
           await this.calculate();
-          const revert = (this.calculations.loan_can_afford_28 || this.calculations.loan_can_afford_36) && (this.calculations.loan_can_afford_28 !== this.calculations.loan_can_afford_36);
+          const revert:boolean = iteration.improving && (this.calculations.loan_can_afford_28 || this.calculations.loan_can_afford_36) && (this.calculations.loan_can_afford_28 !== this.calculations.loan_can_afford_36);
           if(revert){
             this.inputs[key] = iteration.current;
             await this.calculate();
@@ -65,30 +70,30 @@ class Loan {
       }
     })
   }
-  async iterate(key,step,increment){
-    const previous_ratio_28 = this.calculations.ratio_28;
-    const previous_ratio_36 = this.calculations.ratio_36;
-    const previous = this.inputs[key];
+  async iterate(key:string, step:number, increment:number): Promise<IAppIteration>{
+    const previous_ratio_28:number = this.calculations.ratio_28;
+    const previous_ratio_36:number = this.calculations.ratio_36;
+    const previous:number = this.inputs[key];
     this.inputs[key] = this.inputs[key] + (step * increment);
     await this.calculate();
-    const current_ratio_28 = this.calculations.ratio_28;
-    const current_ratio_36 = this.calculations.ratio_36;
-    const improving = current_ratio_28 < previous_ratio_28 || current_ratio_36 < previous_ratio_36;
-    const can_afford = this.calculations.loan_can_afford_28 && this.calculations.loan_can_afford_36;
-    let rules_run = [
+    const current_ratio_28:number = this.calculations.ratio_28;
+    const current_ratio_36:number = this.calculations.ratio_36;
+    const improving:boolean = current_ratio_28 < previous_ratio_28 || current_ratio_36 < previous_ratio_36;
+    const can_afford:boolean = this.calculations.loan_can_afford_28 && this.calculations.loan_can_afford_36;
+    let rules_run:Array<boolean> = [
       increment === 1 && improving && !can_afford,
       increment === 1 && !improving && can_afford,
       increment === -1 && !improving && can_afford,
       increment === -1 && improving && !can_afford,
     ]
-    let run = rules_run.includes(true);
-    let rules_finish = [
+    let run:boolean = rules_run.includes(true);
+    let rules_finish:Array<boolean> = [
       !run && increment === 1 && !improving && !can_afford,
       !run && increment === -1 && !improving && !can_afford,
       !run && increment === 1 && improving && can_afford,
       !run && increment === -1 && improving && can_afford
     ]
-    let finish = rules_finish.includes(true);
+    let finish:boolean = rules_finish.includes(true);
     return {
       increment: increment,
       improving: improving,
@@ -99,7 +104,7 @@ class Loan {
       finish: finish,
     }
   }
-  async calculate(){
+  async calculate(): Promise<boolean> {
     this.calculations.income_monthly_in = await this.income_monthly_in();
     this.calculations.income_monthly_discretionary = await this.income_monthly_discretionary();
     this.calculations.loan_amount = await this.loan_amount();
@@ -118,36 +123,36 @@ class Loan {
     this.calculations.ratio_36 = await this.ratio_36();
     return true;
   }
-  income_monthly_in(){
+  income_monthly_in(): number {
     const a = this.inputs.income_monthly_pretax_out * 12;
     const b = this.inputs.income_yearly_in - a;
     const c = this.inputs.income_tax_rate / 100;
     const d = b - (b * c);
     return d / 12;
   }
-  income_monthly_discretionary(){
+  income_monthly_discretionary(): number {
     return this.calculations.income_monthly_in - this.inputs.income_monthly_expenses;
   }
-  loan_amount(){
+  loan_amount(): number {
     return this.inputs.home_price - this.inputs.loan_down_payment;
   }
-  due_monthly_taxes(){
+  due_monthly_taxes(): number {
     return this.inputs.home_taxes_yearly / 12;
   }
-  loan_min_down_payment(){
+  loan_min_down_payment(): number {
     return 0.035 * this.inputs.home_price;
   }
-  due_monthly_total(){
+  due_monthly_total(): number {
     return this.calculations.due_monthly_principal + this.calculations.due_monthly_pmi + this.calculations.due_monthly_taxes + this.inputs.home_insurance_monthly;
   }
-  due_monthly_principal(){
+  due_monthly_principal(): number {
     const a = this.inputs.loan_term_years * 12;
     const b = this.inputs.loan_rate_interest / 1200;
     const c = Math.pow(1 + b, a - 1);
     const d = b + b / c;
     return d * this.calculations.loan_amount;
   }
-  loan_ceiling_28(){
+  loan_ceiling_28(): number {
     const a = this.inputs.income_yearly_in / 12;
     const b = this.inputs.income_tax_rate / 100;
     const c = this.inputs.home_rent_monthly * b;
@@ -155,7 +160,7 @@ class Loan {
     const e = a + d;
     return 0.28 * e;
   }
-  loan_ceiling_36(){
+  loan_ceiling_36(): number {
     const a = this.inputs.income_yearly_in / 12;
     const b = this.inputs.income_tax_rate / 100;
     const c = this.inputs.home_rent_monthly * b;
@@ -163,13 +168,13 @@ class Loan {
     const e = a + d;
     return 0.36 * e;
   }
-  due_monthly_pmi(){
+  due_monthly_pmi(): number {
     const a = this.inputs.loan_rate_pmi / 100;
     const b = a * this.calculations.loan_amount;
     const c = this.calculations.loan_amount * 0.20;
     return this.inputs.loan_down_payment >= c ? 0 : b / 12;
   }
-  income_monthly_discretionary_after_dues(){
+  income_monthly_discretionary_after_dues(): number {
     const a = this.calculations.due_monthly_total + this.inputs.income_monthly_expenses;
     const b = this.calculations.income_monthly_in - a;
     const c = this.inputs.income_tax_rate / 100;
@@ -177,22 +182,21 @@ class Loan {
     const e = b + this.inputs.home_rent_monthly;
     return e - d;
   }
-  loan_can_afford_28(){
+  loan_can_afford_28(): boolean {
     return this.calculations.due_monthly_principal < this.calculations.loan_ceiling_28;
   }
-  loan_can_afford_36(){
+  loan_can_afford_36(): boolean {
     return this.calculations.due_monthly_total < this.calculations.loan_ceiling_36;
   }
-  loan_months_to_save_down_payment(){
-    return this.inputs.loan_down_payment / this.calculations.income_monthly_discretionary;
+  loan_months_to_save_down_payment(): number {
+    return Math.floor(this.inputs.loan_down_payment / this.calculations.income_monthly_discretionary);
   }
-  ratio_28(){
+  ratio_28(): number {
     return this.calculations.due_monthly_principal / this.calculations.loan_ceiling_28;
   }
-  ratio_36(){
+  ratio_36(): number {
     return this.calculations.due_monthly_total / this.calculations.loan_ceiling_36;
   }
-
 }
 
 export default new Loan()
