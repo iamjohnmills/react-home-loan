@@ -4,4 +4,4 @@
 
 html,body { min-height: 100%; }
 body { background-image: linear-gradient(to right top, #7486a0, #8f9db5, #abb5ca, #c6cee0, #e2e7f6); }
-.can-afford-icon { top: -30px; right: -30px; }
+.can-afford-icon { top: 0; right: 0; }
